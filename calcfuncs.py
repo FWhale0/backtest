@@ -5,28 +5,28 @@ def calc_days(data: pd.Series) -> int:
     return len(data)
 
 
-def calc_accuracy(asset: pd.Series) -> float:
-    return (asset.pct_change() > 0).mean()
+def calc_accuracy(nworth: pd.Series) -> float:
+    return (nworth.pct_change() > 0).mean()
 
 
-def calc_return(asset: pd.Series) -> float:
-    return asset.iloc[-1] / asset.iloc[0] - 1
+def calc_return(nworth: pd.Series) -> float:
+    return nworth.iloc[-1] / nworth.iloc[0] - 1
 
 
-def calc_std(asset: pd.Series) -> float:
-    return asset.pct_change().std() * (calc_days(asset) ** 0.5)
+def calc_std(nworth: pd.Series) -> float:
+    return nworth.pct_change().std() * (calc_days(nworth) ** 0.5)
 
 
-def calc_max_drawdown(asset: pd.Series) -> float:
-    return (1 - asset / asset.cummax()).max()
+def calc_max_drawdown(nworth: pd.Series) -> float:
+    return (1 - nworth / nworth.cummax()).max()
 
 
-def calc_calmar(asset: pd.Series) -> float:
-    return calc_return(asset) / calc_max_drawdown(asset)
+def calc_calmar(nworth: pd.Series) -> float:
+    return calc_return(nworth) / calc_max_drawdown(nworth)
 
 
-def calc_sharpe(asset: pd.Series) -> float:
-    return calc_return(asset) / calc_std(asset)
+def calc_sharpe(nworth: pd.Series) -> float:
+    return calc_return(nworth) / calc_std(nworth)
 
 
 def calc_turnover(posi: pd.DataFrame) -> float:
@@ -45,22 +45,22 @@ def calc_longshort(posi: pd.DataFrame) -> float:
     return calc_long(posi) + calc_short(posi)
 
 
-def yearly_return(asset: pd.Series) -> float:
-    return calc_return(asset) * 252 / calc_days(asset)
+def yearly_return(nworth: pd.Series) -> float:
+    return calc_return(nworth) * 252 / calc_days(nworth)
 
 
-def yearly_vol(asset: pd.Series) -> float:
-    return asset.pct_change().std() * (252**0.5)
+def yearly_vol(nworth: pd.Series) -> float:
+    return nworth.pct_change().std() * (252**0.5)
 
 
-def yearly_calmar(asset: pd.Series) -> float:
-    return yearly_return(asset) / calc_max_drawdown(asset)
+def yearly_calmar(nworth: pd.Series) -> float:
+    return yearly_return(nworth) / calc_max_drawdown(nworth)
 
 
-def yearly_sharpe(asset: pd.Series) -> float:
-    return yearly_return(asset) / yearly_vol(asset)
+def yearly_sharpe(nworth: pd.Series) -> float:
+    return yearly_return(nworth) / yearly_vol(nworth)
 
 
-def gen_drawdown(asset: pd.Series) -> pd.Series:
-    max_asset = asset.cummax()
-    return asset / max_asset - 1
+def gen_drawdown(nworth: pd.Series) -> pd.Series:
+    max_asset = nworth.cummax()
+    return nworth / max_asset - 1

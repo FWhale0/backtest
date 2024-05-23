@@ -25,27 +25,27 @@ from backtest.calcfuncs import (
 class StratPerf:
     def __init__(
         self,
-        asset: pd.Series,
+        net_worth: pd.Series,
         posi: Union[pd.DataFrame, pd.Series],
         price: Union[pd.DataFrame, pd.Series, None] = None,
-        baseline: Union[pd.Series, None] = None
-        ):
-        assert asset.index.equals(posi.index), "Index mismatch"
+        baseline: Union[pd.Series, None] = None,
+    ):
+        assert net_worth.index.equals(posi.index), "Index mismatch"
         if price:
-            assert asset.index.equals(price.index), "Index mismatch"
+            assert net_worth.index.equals(price.index), "Index mismatch"
         if baseline:
-            assert asset.index.equals(baseline.index), "Index mismatch"
-        assert asset.notna().all().all(), "Asset contains NaN"
+            assert net_worth.index.equals(baseline.index), "Index mismatch"
+        assert net_worth.notna().all().all(), "Asset contains NaN"
         assert posi.notna().all().all(), "Position contains NaN"
 
-        self.asset = asset
+        self.net_worth = net_worth
         self.posi = posi
         self.price = price
         self.baseline = baseline
         self.perf = self._performance()
 
     def _performance(self) -> pd.DataFrame:
-        asset_g_y = self.asset.groupby(self.asset.index.year)
+        nworth_g_y = self.net_worth.groupby(self.net_worth.index.year)
         posi_g_y = self.posi.groupby(self.posi.index.year)
 
         cols = [
@@ -62,18 +62,18 @@ class StratPerf:
             "abs.%",
         ]
         perf = pd.DataFrame(columns=cols)
-        for y in asset_g_y.groups.keys():
-            asset_y = asset_g_y.get_group(y)
+        for y in nworth_g_y.groups.keys():
+            nworth_y = nworth_g_y.get_group(y)
             posi_y = posi_g_y.get_group(y)
 
             perf.loc[y] = [
-                calc_days(asset_y),
-                calc_accuracy(asset_y),
-                calc_return(asset_y),
-                calc_std(asset_y),
-                calc_max_drawdown(asset_y),
-                calc_calmar(asset_y),
-                calc_sharpe(asset_y),
+                calc_days(nworth_y),
+                calc_accuracy(nworth_y),
+                calc_return(nworth_y),
+                calc_std(nworth_y),
+                calc_max_drawdown(nworth_y),
+                calc_calmar(nworth_y),
+                calc_sharpe(nworth_y),
                 calc_turnover(posi_y),
                 calc_long(posi_y),
                 calc_short(posi_y),
@@ -81,13 +81,13 @@ class StratPerf:
             ]
 
         perf.loc["total"] = [
-            calc_days(self.asset),
-            calc_accuracy(self.asset),
-            yearly_return(self.asset),
-            yearly_vol(self.asset),
-            calc_max_drawdown(self.asset),
-            yearly_calmar(self.asset),
-            yearly_sharpe(self.asset),
+            calc_days(self.net_worth),
+            calc_accuracy(self.net_worth),
+            yearly_return(self.net_worth),
+            yearly_vol(self.net_worth),
+            calc_max_drawdown(self.net_worth),
+            yearly_calmar(self.net_worth),
+            yearly_sharpe(self.net_worth),
             calc_turnover(self.posi),
             calc_long(self.posi),
             calc_short(self.posi),
@@ -95,7 +95,7 @@ class StratPerf:
         ]
 
         return perf
-    
+
     def _parse_toshow(self) -> pd.DataFrame:
         toshow = self.perf.copy()
         toshow["days"] = toshow["days"].astype(int)
@@ -123,10 +123,12 @@ class StratPerf:
     def plot(self, figsize=(12, 4)):
         fig, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
-        self.asset.plot(ax=ax1, label="Asset")
+        self.net_worth.plot(ax=ax1, label="Asset")
 
-        drawdown = gen_drawdown(self.asset)
-        ax2.fill_between(drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown")
+        drawdown = gen_drawdown(self.net_worth)
+        ax2.fill_between(
+            drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown"
+        )
         ax2.set_ylim(-1, 0)
         if self.baseline:
             self.baseline.plot(ax=ax1, label="Baseline")
@@ -135,5 +137,5 @@ class StratPerf:
         ax1.legend()
         ax2.legend()
 
-        plt.close(fig) # TODO: Find a better way to prevent the plot from showing
+        plt.close(fig)  # TODO: Find a better way to prevent the plot from showing
         return fig

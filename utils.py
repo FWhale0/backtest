@@ -233,34 +233,6 @@ def max_drawdown(asset: pd.Series) -> pd.Series:
     max_asset = asset.cummax()
     return ((max_asset - asset) / max_asset).max()
 
-def performance(asset: pd.Series, posi: pd.DataFrame) -> pd.Series:
-    assert asset.index.equals(posi.index), "Index mismatch"
-
-    asset_g_y = asset.groupby(asset.index.year)
-    posi_g_y = posi.groupby(posi.index.year)
-    assets_by_y = {y: group for y, group in asset_g_y}
-    posis_by_y = {y: group for y, group in posi_g_y}
-
-    for y in assets_by_y:
-        asset_y = assets_by_y[y]
-        posi_y = posis_by_y[y]
-
-        days = calc_days(asset_y)
-        acc = calc_accuracy(asset_y)
-        ret = calc_return(asset_y)
-        std = calc_std(asset_y)
-        mdd = calc_max_drawdown(asset_y)
-        calmar = calc_calmar(asset_y)
-        sharpe = calc_sharpe(asset_y)
-        tr = calc_turnover(posi_y)
-        long = calc_long(posi_y)
-        short = calc_short(posi_y)
-        longshort = calc_longshort(posi_y)
-
-    
-
-    return group_Y
-
 def factor_test(
     price: pd.Series,
     factor: pd.Series,
