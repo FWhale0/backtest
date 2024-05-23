@@ -1,0 +1,304 @@
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
+import numpy as np
+from typing import Literal, Union, Tuple
+import re
+import os
+import logging
+
+def load_databycontract(v:str, v_upper:str, quote_dir:str, logger:logging.Logger):
+    dir_path = os.path.join(quote_dir, "DataByContract", v)
+    if not os.path.exists(dir_path):
+        logger.warning(f"Directory not found: {dir_path}")
+        return None
+
+    # match file
+    files = os.listdir(dir_path)
+    pattern = rf"\w+.{v_upper}\.csv"
+    logger.debug(f"Pattern: {pattern}")
+    files = [f for f in files if re.match(pattern, f)]
+    if len(files) != 1:
+        error = f"When reading {v}, expected 1 file, got {len(files)}: {files}"
+        raise ValueError(error)
+    file = files[0]
+
+    # read file
+    logger.info(f"Reading {file}")
+    df = pd.read_csv(os.path.join(dir_path, file), index_col=0, parse_dates=True)
+    if df.empty:
+        raise ValueError(f"Empty dataframe: {file}")
+    
+    return df
+
+def scale(
+    x: Union[pd.DataFrame, pd.Series],
+    how: Literal["minmax", "standard", "1stvalue", "divstd"] = "standard"
+) -> pd.DataFrame:
+    assert how in [
+        "minmax",
+        "standard",
+        "1stvalue",
+        "divstd",
+    ], "how must be 'minmax', 'standard', '1stvalue', or 'divstd'"
+
+    if isinstance(x, pd.Series):
+        x = x.to_frame()
+
+    if how == "minmax":
+        scaler = MinMaxScaler()
+        return pd.DataFrame(scaler.fit_transform(x), columns=x.columns, index=x.index)
+    if how == "standard":
+        scaler = StandardScaler()
+        return pd.DataFrame(scaler.fit_transform(x), columns=x.columns, index=x.index)
+    if how == "1stvalue":
+        return x.apply(lambda x: x / abs(x.loc[x.first_valid_index()]))
+    if how == "divstd":
+        return x.apply(lambda x: x / x.std())
+
+
+def ic(price: pd.Series, factor: pd.Series) -> pd.DataFrame:
+    # correlation between x and y with lag 1
+    price = price.loc[price.first_valid_index():]
+    factor = factor.loc[factor.first_valid_index():]
+    price, factor = price.align(factor, axis=0, join="inner")
+    return price.corrwith(factor.shift(1))
+
+
+def rule_encode(x: pd.Series) -> pd.Series:
+    y = x.copy()
+    freq = {
+        "日": 0,
+        "周": 1,
+        "月": 2,
+        "年": 3,
+    }
+
+    interval = {
+        "当": 0,
+        "次": 1,
+        "隔": 2,
+    }
+
+    day_day = {
+        "": 0,
+    }
+
+    week_day = {
+        "周一": 0,
+        "周二": 1,
+        "周三": 2,
+        "周四": 3,
+        "周五": 4,
+        "周六": 5,
+        "周日": 6,
+    }
+
+    month_day = {
+        "上旬": 0,
+        "中旬": 1,
+        "下旬": 2,
+    }
+
+    year_day = {
+        "一月": 0,
+        "二月": 1,
+        "三月": 2,
+        "四月": 3,
+        "五月": 4,
+        "六月": 5,
+        "七月": 6,
+        "八月": 7,
+        "九月": 8,
+        "十月": 9,
+        "十一月": 10,
+        "十二月": 11,
+        "上半年": 20,
+        "下半年": 21,
+        "第一季度": 30,
+        "第二季度": 31,
+        "第三季度": 32,
+        "第四季度": 33,
+    }
+
+    for i, s in enumerate(y):
+        s = s.rstrip("发布")
+
+        freq_code = freq[s[1]]
+        interval_code = interval[s[0]]
+        if freq_code == 0:
+            day_code = day_day[s[2:]]
+        elif freq_code == 1:
+            day_code = week_day[s[2:]]
+        elif freq_code == 2:
+            day_code = month_day[s[2:]]
+        else:
+            day_code = year_day[s[2:]]
+
+        code = f"{freq_code}_{interval_code}_{day_code}"
+
+        y[i] = code
+
+    return y
+
+def bt_single(
+    price: pd.DataFrame,
+    factor: pd.Series,
+    trade: Literal["long", "short", "longshort"],
+) -> pd.DataFrame:
+    long = trade in ["long", "longshort"]
+    short = trade in ["short", "longshort"]
+
+    price = price.loc[price.first_valid_index():]
+    factor = factor.loc[factor.first_valid_index():]
+    price, factor = price.align(factor, axis=0, join="inner")
+
+    asset = pd.Series(index=price.index, name="asset")
+    asset.iloc[0] = 1
+    hold = 0
+
+    for d in price.index[1:]:
+        # get last price and factor, update asset
+        last_index = price.index.get_loc(d) - 1
+        last_factor = factor.iloc[last_index]
+        last_price = price.iloc[last_index]
+        last_asset = asset.iloc[last_index]
+
+        asset.loc[d] = last_asset + hold * (price.loc[d] - last_price)
+
+        # # update cash and hold
+        # if factor.loc[d] > last_factor and hold <= 0:
+        #     if long:
+        #         hold = asset.loc[d] / price.loc[d]
+        #     else:
+        #         hold = 0
+        # elif factor.loc[d] < last_factor and hold >= 0:
+        #     if short:
+        #         hold = -asset.loc[d] / price.loc[d]
+        #     else:
+        #         hold = 0
+
+
+        # update cash and hold
+        if factor.loc[d] > 0 and hold <= 0:
+            if long:
+                hold = asset.loc[d] / price.loc[d]
+            else:
+                hold = 0
+        elif factor.loc[d] < 0 and hold >= 0:
+            if short:
+                hold = -asset.loc[d] / price.loc[d]
+            else:
+                hold = 0
+
+    return asset
+
+def yearly_return(
+    asset: pd.Series,
+    start: Union[pd.Timestamp, None] = None,
+    end: Union[pd.Timestamp, None] = None,
+) -> pd.Series:
+    if start:
+        asset = asset.loc[start:]
+    if end:
+        asset = asset.loc[:end]
+
+    first = asset.loc[asset.first_valid_index()]
+    last = asset.loc[asset.last_valid_index()]
+
+    total_return = last / first - 1
+    years = (asset.last_valid_index() - asset.first_valid_index()).days / 365
+    return total_return / years
+
+def yearly_vol(
+    asset: pd.Series,
+    start: Union[pd.Timestamp, None] = None,
+    end: Union[pd.Timestamp, None] = None,
+) -> pd.Series:
+    if start:
+        asset = asset.loc[start:]
+    if end:
+        asset = asset.loc[:end]
+
+    first_index = asset.first_valid_index()
+    last_index = asset.last_valid_index()
+    asset = asset.loc[first_index:last_index]
+
+    return asset.pct_change().std() * (252 ** 0.5)
+
+def sharpe(asset: pd.Series) -> pd.Series:
+    return yearly_return(asset) / yearly_vol(asset)
+
+def max_drawdown(asset: pd.Series) -> pd.Series:
+    max_asset = asset.cummax()
+    return ((max_asset - asset) / max_asset).max()
+
+def performance(asset: pd.Series, posi: pd.DataFrame) -> pd.Series:
+    assert asset.index.equals(posi.index), "Index mismatch"
+
+    asset_g_y = asset.groupby(asset.index.year)
+    posi_g_y = posi.groupby(posi.index.year)
+    assets_by_y = {y: group for y, group in asset_g_y}
+    posis_by_y = {y: group for y, group in posi_g_y}
+
+    for y in assets_by_y:
+        asset_y = assets_by_y[y]
+        posi_y = posis_by_y[y]
+
+        days = calc_days(asset_y)
+        acc = calc_accuracy(asset_y)
+        ret = calc_return(asset_y)
+        std = calc_std(asset_y)
+        mdd = calc_max_drawdown(asset_y)
+        calmar = calc_calmar(asset_y)
+        sharpe = calc_sharpe(asset_y)
+        tr = calc_turnover(posi_y)
+        long = calc_long(posi_y)
+        short = calc_short(posi_y)
+        longshort = calc_longshort(posi_y)
+
+    
+
+    return group_Y
+
+def factor_test(
+    price: pd.Series,
+    factor: pd.Series,
+    trade: Literal["long", "short", "longshort"],
+    logger: Union[logging.Logger, None] = None,
+) -> Tuple[pd.Series, pd.Series]:
+    asset = bt_single(price, factor, trade)
+    yr = yearly_return(asset)
+    yv = yearly_vol(asset)
+    sp = sharpe(asset)
+    md = max_drawdown(asset)
+    close_yr = yearly_return(price, asset.index[0], asset.index[-1])
+    exceed_yr = yr - close_yr
+
+    if logger:
+        log_text = f"({price.name}, {factor.name}, {trade}, {asset.index[-1].strftime('%Y%m%d')}): yr={yr:.2%},\teyr={exceed_yr:.2%},\tyv={yv:.2%},\tsp={sp:.2f},\tmd={md:.2%}"
+        logger.info(log_text)
+
+    row = {
+        "yearly_return": yr,
+        "exceed_yr": exceed_yr,
+        "yearly_vol": yv,
+        "sharpe": sp,
+        "max_drawdown": md,
+    }
+
+    return pd.Series(row), asset
+
+def posi_bt(
+    posi: pd.DataFrame,
+    price: pd.DataFrame,
+) -> pd.Series:
+    posi = posi.shift(1)
+    price_ret = price.pct_change()
+
+    posi, price_ret = posi.align(price_ret, axis=0, join="inner")
+
+    port_ret = (posi * price_ret).sum(axis=1)
+    asset = (1 + port_ret).cumprod()
+
+    return asset
