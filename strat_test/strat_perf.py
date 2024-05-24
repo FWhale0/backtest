@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Union
 
-from backtest.calcfuncs import (
+from strat_test.calcfuncs import (
     calc_days,
     calc_accuracy,
     calc_return,
