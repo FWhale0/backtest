@@ -31,9 +31,9 @@ class StratPerf:
         baseline: Union[pd.Series, None] = None,
     ):
         assert net_worth.index.equals(posi.index), "Index mismatch"
-        if price:
+        if isinstance(price, (pd.DataFrame, pd.Series)):
             assert net_worth.index.equals(price.index), "Index mismatch"
-        if baseline:
+        if isinstance(baseline, pd.Series):
             assert net_worth.index.equals(baseline.index), "Index mismatch"
         assert net_worth.notna().all().all(), "Asset contains NaN"
         assert posi.notna().all().all(), "Position contains NaN"
@@ -45,6 +45,7 @@ class StratPerf:
         self.perf = self._performance()
 
     def _performance(self) -> pd.DataFrame:
+        # TODO: Exceed return
         nworth_g_y = self.net_worth.groupby(self.net_worth.index.year)
         posi_g_y = self.posi.groupby(self.posi.index.year)
 
@@ -124,7 +125,9 @@ class StratPerf:
         fig, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
         self.net_worth.plot(ax=ax1, label="Asset")
-
+        if isinstance(self.price, pd.Series):
+            self.price.plot(ax=ax1, label="Price")
+            plt.plot(self.net_worth - self.price, label="Exceed Return", color="green")
         drawdown = gen_drawdown(self.net_worth)
         ax2.fill_between(
             drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown"

@@ -21,11 +21,12 @@ class NetWorthMaker:
             force
         ), "Absolute value of position should be less than or equal to 1"
         self.networth = self._calc_networth()
+        self.perf = StratPerf(self.networth, position, price)
 
     def _check_posi_legal(self, force: bool) -> bool:
         if force:
             return True
-        
+
         # The absolute value of position should be less than or equal to 1
         if self.position.abs().sum(axis=1).round(8).gt(1).any():
             return False
@@ -50,7 +51,7 @@ class NetWorthMaker:
 
         return True
 
-    def _calc_networth(self) -> pd.Series:
+    def _calc_networth_vector(self) -> pd.Series:
         start = self.position.first_valid_index()
         end = self.position.last_valid_index()
         price = self.price.loc[start:end]
@@ -65,11 +66,31 @@ class NetWorthMaker:
 
         return pd.Series(data=nworth, index=index, name="net_worth")
 
+    def _calc_networth_progress(self) -> pd.Series:
+        start = self.position.first_valid_index()
+        end = self.position.last_valid_index()
+        price = self.price.loc[start:end]
+        posi = self.position.loc[start:end].shift(1)
+        posi = posi.replace(0, np.nan)
+
+        nworth = pd.Series(index=price.index, name="net_worth")
+        nworth.iloc[0] = 1
+
+        for d in price.index[1:]:
+            last_index = price.index.get_loc(d) - 1
+            last_asset = nworth.iloc[last_index]
+            last_price = price.iloc[last_index]
+            hold = (last_asset * posi.loc[d]) / last_price
+            nworth.loc[d] = last_asset + (hold * (price.loc[d] - last_price)).sum()
+
+        return nworth
+
+    def _calc_networth(self) -> pd.Series:
+        return self._calc_networth_progress()
+        # return self._calc_networth_vector()
+
     def get_networth(self) -> pd.Series:
         return self.networth
 
     def plot(self, figsize=(12, 4)):
-        plt.figure(figsize=figsize)
-        plt.plot(self.networth, label="Net Worth")
-        plt.legend()
-        plt.show()
+        return self.perf.plot(figsize=figsize)
