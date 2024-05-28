@@ -11,20 +11,20 @@ class NetWorthMaker:
         self,
         price: Union[pd.DataFrame, pd.Series],
         position: Union[pd.DataFrame, pd.Series],
-        force: bool = False,
+        ignore_posi_exceed: bool = False,
     ):
         self.price = price
         self.position = position
 
         assert self._check_data_match(), "Data mismatch"
         assert self._check_posi_legal(
-            force
+            ignore_posi_exceed
         ), "Absolute value of position should be less than or equal to 1"
         self.networth = self._calc_networth()
         self.perf = StratPerf(self.networth, position, price)
 
-    def _check_posi_legal(self, force: bool) -> bool:
-        if force:
+    def _check_posi_legal(self, ignore_posi_exceed: bool) -> bool:
+        if ignore_posi_exceed:
             return True
 
         # The absolute value of position should be less than or equal to 1
@@ -86,8 +86,8 @@ class NetWorthMaker:
         return nworth
 
     def _calc_networth(self) -> pd.Series:
-        return self._calc_networth_progress()
-        # return self._calc_networth_vector()
+        # return self._calc_networth_progress()
+        return self._calc_networth_vector()
 
     def get_networth(self) -> pd.Series:
         return self.networth

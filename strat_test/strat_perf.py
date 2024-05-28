@@ -30,6 +30,15 @@ class StratPerf:
         price: Union[pd.DataFrame, pd.Series, None] = None,
         baseline: Union[pd.Series, None] = None,
     ):
+        """
+        Initialize the StratPerf object.
+
+        Parameters:
+        - net_worth (pd.Series): Series representing the net worth over time.
+        - posi (Union[pd.DataFrame, pd.Series]): DataFrame or Series representing the position over time.
+        - price (Union[pd.DataFrame, pd.Series, None]): DataFrame or Series representing the price over time. Default is None.
+        - baseline (Union[pd.Series, None]): Series representing the baseline over time. Default is None.
+        """
         assert net_worth.index.equals(posi.index), "Index mismatch"
         if isinstance(price, (pd.DataFrame, pd.Series)):
             assert net_worth.index.equals(price.index), "Index mismatch"
@@ -45,6 +54,12 @@ class StratPerf:
         self.perf = self._performance()
 
     def _performance(self) -> pd.DataFrame:
+        """
+        Calculate the performance metrics.
+
+        Returns:
+        - pd.DataFrame: DataFrame containing the performance metrics.
+        """
         # TODO: Exceed return
         nworth_g_y = self.net_worth.groupby(self.net_worth.index.year)
         posi_g_y = self.posi.groupby(self.posi.index.year)
@@ -98,6 +113,12 @@ class StratPerf:
         return perf
 
     def _parse_toshow(self) -> pd.DataFrame:
+        """
+        Parse the performance metrics for display.
+
+        Returns:
+        - pd.DataFrame: DataFrame with parsed performance metrics.
+        """
         toshow = self.perf.copy()
         toshow["days"] = toshow["days"].astype(int)
         toshow["acc.%"] = (toshow["acc.%"] * 100).round(2)
@@ -113,15 +134,45 @@ class StratPerf:
         return toshow
 
     def get_all(self) -> pd.DataFrame:
+        """
+        Get all performance metrics.
+
+        Returns:
+        - pd.DataFrame: DataFrame containing all performance metrics.
+        """
         return self._parse_toshow()
 
     def get_total(self) -> pd.Series:
+        """
+        Get the total performance metrics.
+
+        Returns:
+        - pd.Series: Series containing the total performance metrics.
+        """
         return self._parse_toshow().loc["total"]
 
     def get_by_name(self, name: Union[str, list]) -> pd.Series:
+        """
+        Get performance metrics by name.
+
+        Parameters:
+        - name (Union[str, list]): Name or list of names to retrieve performance metrics for.
+
+        Returns:
+        - pd.Series: Series containing the performance metrics for the specified name(s).
+        """
         return self._parse_toshow().loc[name]
 
     def plot(self, figsize=(12, 4)):
+        """
+        Plot the net worth and other metrics.
+
+        Parameters:
+        - figsize (tuple): Figure size. Default is (12, 4).
+
+        Returns:
+        - matplotlib.figure.Figure: The plotted figure.
+        """
         fig, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
         self.net_worth.plot(ax=ax1, label="Asset")
