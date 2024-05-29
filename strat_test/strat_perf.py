@@ -47,11 +47,28 @@ class StratPerf:
         assert net_worth.notna().all().all(), "Asset contains NaN"
         assert posi.notna().all().all(), "Position contains NaN"
 
-        self.net_worth = net_worth
+        self.net_worth = self._parse_net_worth(net_worth)
+
         self.posi = posi
         self.price = price
         self.baseline = baseline
         self.perf = self._performance()
+
+    def _parse_net_worth(self, nworth: Union[pd.Series, pd.DataFrame]) -> pd.Series:
+        """
+        Parse the net worth.
+
+        Parameters:
+        - nworth (Union[pd.Series, pd.DataFrame]): Net worth to parse.
+
+        Returns:
+        - pd.Series: Parsed net worth.
+        """
+        assert isinstance(nworth, (pd.Series, pd.DataFrame)), "Net worth should be Series or DataFrame"
+        if isinstance(nworth, pd.DataFrame):
+            assert nworth.shape[1] == 1, "Net worth DataFrame should have only one column"
+            return nworth.iloc[:, 0]
+        return nworth
 
     def _performance(self) -> pd.DataFrame:
         """

@@ -7,6 +7,25 @@ from strat_test.strat_perf import StratPerf
 
 
 class NetWorthMaker:
+    """
+    Class to calculate net worth and performance of a trading strategy.
+
+    Args:
+        price (Union[pd.DataFrame, pd.Series]): The price data used for the strategy.
+        position (Union[pd.DataFrame, pd.Series]): The position data used for the strategy.
+        ignore_posi_exceed (bool, optional): Whether to ignore positions that exceed the absolute value of 1. Defaults to False.
+
+    Attributes:
+        price (Union[pd.DataFrame, pd.Series]): The price data used for the strategy.
+        position (Union[pd.DataFrame, pd.Series]): The position data used for the strategy.
+        networth (pd.Series): The net worth of the strategy.
+        perf (StratPerf): The performance of the strategy.
+
+    Raises:
+        AssertionError: If there is a data mismatch or if the absolute value of position exceeds 1.
+
+    """
+
     def __init__(
         self,
         price: Union[pd.DataFrame, pd.Series],
@@ -24,6 +43,16 @@ class NetWorthMaker:
         self.perf = StratPerf(self.networth, position, price)
 
     def _check_posi_legal(self, ignore_posi_exceed: bool) -> bool:
+        """
+        Check if the positions are legal.
+
+        Args:
+            ignore_posi_exceed (bool): Whether to ignore positions that exceed the absolute value of 1.
+
+        Returns:
+            bool: True if positions are legal, False otherwise.
+
+        """
         if ignore_posi_exceed:
             return True
 
@@ -33,6 +62,13 @@ class NetWorthMaker:
         return True
 
     def _check_data_match(self) -> bool:
+        """
+        Check if the price and position data match.
+
+        Returns:
+            bool: True if data matches, False otherwise.
+
+        """
         dropped_posi = self.position.dropna(how="all", axis=1)
         dropped_posi = dropped_posi.dropna(how="all", axis=0)
         dropped_posi = dropped_posi.replace(0, np.nan)
@@ -52,6 +88,13 @@ class NetWorthMaker:
         return True
 
     def _calc_networth_vector(self) -> pd.Series:
+        """
+        Calculate net worth using vectorized calculations.
+
+        Returns:
+            pd.Series: The net worth of the strategy.
+
+        """
         start = self.position.first_valid_index()
         end = self.position.last_valid_index()
         price = self.price.loc[start:end]
@@ -67,6 +110,13 @@ class NetWorthMaker:
         return pd.Series(data=nworth, index=index, name="net_worth")
 
     def _calc_networth_progress(self) -> pd.Series:
+        """
+        Calculate net worth using progressive calculations.
+
+        Returns:
+            pd.Series: The net worth of the strategy.
+
+        """
         start = self.position.first_valid_index()
         end = self.position.last_valid_index()
         price = self.price.loc[start:end]
@@ -86,11 +136,35 @@ class NetWorthMaker:
         return nworth
 
     def _calc_networth(self) -> pd.Series:
+        """
+        Calculate the net worth of the strategy.
+
+        Returns:
+            pd.Series: The net worth of the strategy.
+
+        """
         # return self._calc_networth_progress()
         return self._calc_networth_vector()
 
     def get_networth(self) -> pd.Series:
+        """
+        Get the net worth of the strategy.
+
+        Returns:
+            pd.Series: The net worth of the strategy.
+
+        """
         return self.networth
 
     def plot(self, figsize=(12, 4)):
+        """
+        Plot the performance of the strategy.
+
+        Args:
+            figsize (tuple, optional): The size of the figure. Defaults to (12, 4).
+
+        Returns:
+            matplotlib.axes.Axes: The plot of the performance.
+
+        """
         return self.perf.plot(figsize=figsize)
