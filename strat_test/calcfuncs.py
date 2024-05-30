@@ -64,3 +64,4 @@ def yearly_sharpe(nworth: pd.Series) -> float:
 def gen_drawdown(nworth: pd.Series) -> pd.Series:
     max_asset = nworth.cummax()
     return nworth / max_asset - 1
+

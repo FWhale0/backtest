@@ -21,6 +21,8 @@ from strat_test.calcfuncs import (
     gen_drawdown,
 )
 
+from utils import scale
+
 
 class StratPerf:
     def __init__(
@@ -190,6 +192,8 @@ class StratPerf:
         Returns:
         - matplotlib.figure.Figure: The plotted figure.
         """
+        # TODO: How to return a editable plot like pandas.plot?
+
         fig, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
         self.net_worth.plot(ax=ax1, label="Asset")
@@ -201,8 +205,9 @@ class StratPerf:
             drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown"
         )
         ax2.set_ylim(-1, 0)
-        if self.baseline:
-            self.baseline.plot(ax=ax1, label="Baseline")
+        if isinstance(self.baseline, pd.Series):
+            bl = scale(self.baseline, '1stvalue')
+            bl.plot(ax=ax1, label="Baseline")
 
         # TODO: Find a better way to locate the legend
         ax1.legend()
