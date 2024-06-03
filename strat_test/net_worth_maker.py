@@ -32,13 +32,21 @@ class NetWorthMaker:
         position: Union[pd.DataFrame, pd.Series],
         ignore_posi_exceed: bool = False,
     ):
+        # Convert Series to DataFrame
+        if isinstance(price, pd.Series):
+            price = price.to_frame()
+        if isinstance(position, pd.Series):
+            position = position.to_frame()
         self.price = price
         self.position = position
 
+        # Check if the data match
         assert self._check_data_match(), "Data mismatch"
         assert self._check_posi_legal(
             ignore_posi_exceed
         ), "Absolute value of position should be less than or equal to 1"
+
+        # Calculate net worth and performance
         self.networth = self._calc_networth()
         self.perf = StratPerf(self.networth, position, price)
 
@@ -168,3 +176,6 @@ class NetWorthMaker:
 
         """
         return self.perf.plot(figsize=figsize)
+
+    def get_total(self) -> float:
+        return self.perf.get_total()
