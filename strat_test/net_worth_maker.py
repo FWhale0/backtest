@@ -55,7 +55,8 @@ class NetWorthMaker:
         Check if the positions are legal.
 
         Args:
-            ignore_posi_exceed (bool): Whether to ignore positions that exceed the absolute value of 1.
+            ignore_posi_exceed (bool): Whether to ignore positions
+            that exceed the absolute value of 1.
 
         Returns:
             bool: True if positions are legal, False otherwise.

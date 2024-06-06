@@ -66,9 +66,13 @@ class StratPerf:
         Returns:
         - pd.Series: Parsed net worth.
         """
-        assert isinstance(nworth, (pd.Series, pd.DataFrame)), "Net worth should be Series or DataFrame"
+        assert isinstance(
+            nworth, (pd.Series, pd.DataFrame)
+        ), "Net worth should be Series or DataFrame"
         if isinstance(nworth, pd.DataFrame):
-            assert nworth.shape[1] == 1, "Net worth DataFrame should have only one column"
+            assert (
+                nworth.shape[1] == 1
+            ), "Net worth DataFrame should have only one column"
             return nworth.iloc[:, 0]
         return nworth
 
@@ -192,7 +196,6 @@ class StratPerf:
         Returns:
         - matplotlib.figure.Figure: The plotted figure.
         """
-        # TODO: How to return a editable plot like pandas.plot?
 
         fig, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
@@ -206,12 +209,12 @@ class StratPerf:
         )
         ax2.set_ylim(-1, 0)
         if isinstance(self.baseline, pd.Series):
-            bl = scale(self.baseline, '1stvalue')
+            bl = scale(self.baseline, "1stvalue")
             bl.plot(ax=ax1, label="Baseline")
 
         # TODO: Find a better way to locate the legend
         ax1.legend()
         ax2.legend()
 
-        plt.close(fig)  # TODO: Find a better way to prevent the plot from showing
-        return fig
+        ax1.right_ax = ax2
+        return ax1
