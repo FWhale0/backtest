@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Union
 
-from strat_test.calcfuncs import (
+from strat_test.calc_funcs import (
     calc_days,
     calc_accuracy,
     calc_return,
@@ -19,28 +20,41 @@ from strat_test.calcfuncs import (
     yearly_calmar,
     yearly_sharpe,
     gen_drawdown,
+    scale,
 )
-
-from utils import scale
 
 
 class StratPerf:
+    """
+    Class to calculate and analyze the performance metrics of a trading strategy.
+
+    Parameters:
+    - net_worth (pd.Series): Series representing the net worth of the strategy.
+    - posi (pd.DataFrame | pd.Series): DataFrame or Series representing the position of the strategy.
+    - price (pd.DataFrame | pd.Series | None): DataFrame or Series representing the price data. Default is None.
+    - baseline (pd.Series | None): Series representing the baseline data. Default is None.
+
+    Attributes:
+    - net_worth (pd.Series): Series representing the net worth of the strategy.
+    - posi (pd.DataFrame | pd.Series): DataFrame or Series representing the position of the strategy.
+    - price (pd.DataFrame | pd.Series | None): DataFrame or Series representing the price data.
+    - baseline (pd.Series | None): Series representing the baseline data.
+    - perf (pd.DataFrame): DataFrame containing the performance metrics.
+
+    Methods:
+    - get_annual(): Get all performance metrics.
+    - get_total(): Get the total performance metrics.
+    - get_by_name(name: str | list): Get performance metrics by name.
+    - plot(figsize=(12, 4)): Plot the net worth and other metrics.
+    """
+
     def __init__(
         self,
         net_worth: pd.Series,
-        posi: Union[pd.DataFrame, pd.Series],
-        price: Union[pd.DataFrame, pd.Series, None] = None,
-        baseline: Union[pd.Series, None] = None,
+        posi: pd.DataFrame | pd.Series,
+        price: pd.DataFrame | pd.Series | None = None,
+        baseline: pd.Series | None = None,
     ):
-        """
-        Initialize the StratPerf object.
-
-        Parameters:
-        - net_worth (pd.Series): Series representing the net worth over time.
-        - posi (Union[pd.DataFrame, pd.Series]): DataFrame or Series representing the position over time.
-        - price (Union[pd.DataFrame, pd.Series, None]): DataFrame or Series representing the price over time. Default is None.
-        - baseline (Union[pd.Series, None]): Series representing the baseline over time. Default is None.
-        """
         assert net_worth.index.equals(posi.index), "Index mismatch"
         if isinstance(price, (pd.DataFrame, pd.Series)):
             assert net_worth.index.equals(price.index), "Index mismatch"
@@ -56,12 +70,12 @@ class StratPerf:
         self.baseline = baseline
         self.perf = self._performance()
 
-    def _parse_net_worth(self, nworth: Union[pd.Series, pd.DataFrame]) -> pd.Series:
+    def _parse_net_worth(self, nworth: pd.Series | pd.DataFrame) -> pd.Series:
         """
         Parse the net worth.
 
         Parameters:
-        - nworth (Union[pd.Series, pd.DataFrame]): Net worth to parse.
+        - nworth (pd.Series | pd.DataFrame): Net worth to parse.
 
         Returns:
         - pd.Series: Parsed net worth.
@@ -174,15 +188,17 @@ class StratPerf:
         """
         return self._parse_toshow().loc["total"]
 
-    def get_by_name(self, name: Union[str, list]) -> pd.Series:
+    def get_by_name(self, name: str | list) -> pd.Series:
         """
         Get performance metrics by name.
 
         Parameters:
-        - name (Union[str, list]): Name or list of names to retrieve performance metrics for.
+        - name (str | list): Name or list of names
+        to retrieve performance metrics for.
 
         Returns:
-        - pd.Series: Series containing the performance metrics for the specified name(s).
+        - pd.Series: Series containing the performance metrics
+        for the specified name(s).
         """
         return self._parse_toshow().loc[name]
 
@@ -202,7 +218,8 @@ class StratPerf:
         self.net_worth.plot(ax=ax1, label="Asset")
         if isinstance(self.price, pd.Series):
             self.price.plot(ax=ax1, label="Price")
-            plt.plot(self.net_worth - self.price, label="Exceed Return", color="green")
+            ex_ret = self.net_worth - self.price
+            plt.plot(ex_ret, label="Exceed Return", color="green")
         drawdown = gen_drawdown(self.net_worth)
         ax2.fill_between(
             drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown"

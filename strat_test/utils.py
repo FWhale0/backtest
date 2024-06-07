@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 import pandas as pd
 import numpy as np
-from typing import Literal, Union, Tuple
+from typing import Literal, Tuple
 import re
 import os
 import logging
@@ -32,7 +34,7 @@ def load_databycontract(v:str, v_upper:str, quote_dir:str, logger:logging.Logger
     return df
 
 def scale(
-    x: Union[pd.DataFrame, pd.Series],
+    x: pd.DataFrame | pd.Series,
     how: Literal["minmax", "standard", "1stvalue", "divstd"] = "standard"
 ) -> pd.DataFrame:
     assert how in [
@@ -195,8 +197,8 @@ def bt_single(
 
 def yearly_return(
     asset: pd.Series,
-    start: Union[pd.Timestamp, None] = None,
-    end: Union[pd.Timestamp, None] = None,
+    start: pd.Timestamp | None = None,
+    end: pd.Timestamp | None = None,
 ) -> pd.Series:
     if start:
         asset = asset.loc[start:]
@@ -212,8 +214,8 @@ def yearly_return(
 
 def yearly_vol(
     asset: pd.Series,
-    start: Union[pd.Timestamp, None] = None,
-    end: Union[pd.Timestamp, None] = None,
+    start: pd.Timestamp | None = None,
+    end: pd.Timestamp | None = None,
 ) -> pd.Series:
     if start:
         asset = asset.loc[start:]
@@ -237,7 +239,7 @@ def factor_test(
     price: pd.Series,
     factor: pd.Series,
     trade: Literal["long", "short", "longshort"],
-    logger: Union[logging.Logger, None] = None,
+    logger: logging.Logger | None = None,
 ) -> Tuple[pd.Series, pd.Series]:
     asset = bt_single(price, factor, trade)
     yr = yearly_return(asset)

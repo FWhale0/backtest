@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,18 +8,18 @@ from typing import Literal, Union
 from strat_test.strat_perf import StratPerf
 
 
-class NetWorthMaker:
+class NetWorth:
     """
     Class to calculate net worth and performance of a trading strategy.
 
     Args:
-        price (Union[pd.DataFrame, pd.Series]): The price data used for the strategy.
-        position (Union[pd.DataFrame, pd.Series]): The position data used for the strategy.
+        price (pd.DataFrame | pd.Series): The price data used for the strategy.
+        position (pd.DataFrame | pd.Series): The position data used for the strategy.
         ignore_posi_exceed (bool, optional): Whether to ignore positions that exceed the absolute value of 1. Defaults to False.
 
     Attributes:
-        price (Union[pd.DataFrame, pd.Series]): The price data used for the strategy.
-        position (Union[pd.DataFrame, pd.Series]): The position data used for the strategy.
+        price (pd.DataFrame | pd.Series): The price data used for the strategy.
+        position (pd.DataFrame | pd.Series): The position data used for the strategy.
         networth (pd.Series): The net worth of the strategy.
         perf (StratPerf): The performance of the strategy.
 
@@ -28,8 +30,8 @@ class NetWorthMaker:
 
     def __init__(
         self,
-        price: Union[pd.DataFrame, pd.Series],
-        position: Union[pd.DataFrame, pd.Series],
+        price: pd.DataFrame | pd.Series,
+        position: pd.DataFrame | pd.Series,
         ignore_posi_exceed: bool = False,
     ):
         # Convert Series to DataFrame
