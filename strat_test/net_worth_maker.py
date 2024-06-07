@@ -182,4 +182,4 @@ class NetWorthMaker:
         return self.perf.get_total()
 
     def get_annual(self) -> float:
-        return self.perf.get_all()
+        return self.perf.get_annual()

@@ -156,7 +156,7 @@ class StratPerf:
         toshow["abs.%"] = (toshow["abs.%"] * 100).round(2)
         return toshow
 
-    def get_all(self) -> pd.DataFrame:
+    def get_annual(self) -> pd.DataFrame:
         """
         Get all performance metrics.
 
@@ -197,7 +197,7 @@ class StratPerf:
         - matplotlib.figure.Figure: The plotted figure.
         """
 
-        fig, ax1 = plt.subplots(figsize=figsize)
+        _, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
         self.net_worth.plot(ax=ax1, label="Asset")
         if isinstance(self.price, pd.Series):
