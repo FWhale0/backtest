@@ -161,7 +161,10 @@ def yearly_return(nworth: pd.Series) -> float:
     Returns:
         The yearly return of the net worth series.
     """
-    return calc_return(nworth) * 252 / calc_days(nworth)
+    returns = nworth.pct_change().dropna()
+    return returns.mean() * 252
+
+    # return calc_return(nworth) * 252 / calc_days(nworth)
 
 
 def yearly_vol(nworth: pd.Series) -> float:
@@ -226,7 +229,8 @@ def scale(
 
     Args:
         x: A pandas DataFrame or Series representing the input data.
-        how: The scaling method to use. Options are "minmax", "standard", "1stvalue", or "divstd".
+        how: The scaling method to use.
+        Options are "minmax", "standard", "1stvalue", or "divstd".
 
     Returns:
         The scaled data as a pandas DataFrame.
@@ -264,7 +268,8 @@ def yoy(
 
     Args:
         x: A pandas Series representing the input series.
-        freq: The frequency of the input series. Options are "m" (monthly), "d" (daily), or "w" (weekly).
+        freq: The frequency of the input series.
+        Options are "m" (monthly), "d" (daily), or "w" (weekly).
 
     Returns:
         The YoY change of the input series.

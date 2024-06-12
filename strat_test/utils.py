@@ -250,8 +250,12 @@ def factor_test(
     exceed_yr = yr - close_yr
 
     if logger:
-        log_text = f"({price.name}, {factor.name}, {trade}, {asset.index[-1].strftime('%Y%m%d')}): yr={yr:.2%},\teyr={exceed_yr:.2%},\tyv={yv:.2%},\tsp={sp:.2f},\tmd={md:.2%}"
-        logger.info(log_text)
+        logger.info(
+            f"({price.name}, {factor.name}, {trade}, "
+            f"{asset.index[-1].strftime('%Y%m%d')}): "
+            f"yr={yr:.2%},\teyr={exceed_yr:.2%},\t"
+            f"yv={yv:.2%},\tsp={sp:.2f},\tmd={md:.2%}"
+        )
 
     row = {
         "yearly_return": yr,
