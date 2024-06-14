@@ -161,10 +161,7 @@ def yearly_return(nworth: pd.Series) -> float:
     Returns:
         The yearly return of the net worth series.
     """
-    returns = nworth.pct_change().dropna()
-    return returns.mean() * 252
-
-    # return calc_return(nworth) * 252 / calc_days(nworth)
+    return (calc_return(nworth) + 1) ** (252 / calc_days(nworth)) - 1
 
 
 def yearly_vol(nworth: pd.Series) -> float:

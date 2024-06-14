@@ -42,9 +42,9 @@ class Position:
         self.ls = ls
         self.weight = weight
 
-        self.posi = self._gen_posi()
+        self.unweighted_posi_long, self.unweighted_posi_short = self._gen_posi()
 
-    def _validate_factor(self, factor: pd.Series | pd.DataFrame | float | int) -> None:
+    def _validate_factor(self, factor: pd.Series | pd.DataFrame) -> None:
         """
         Check the factor data.
         """
@@ -98,25 +98,29 @@ class Position:
         if self.mode == "quantile":
             return self._gen_posi_quantile()
 
-    def _gen_posi_abs(self) -> pd.Series | pd.DataFrame:
+    def _gen_posi_abs(self) -> Tuple[pd.Series | pd.DataFrame, pd.Series | pd.DataFrame]:
         """
         Generate the position using the absolute value.
         """
+        posi_long = self.factor.copy()
+        posi_short = self.factor.copy()
         if isinstance(self.ls, (float, int)):
             # long the factor >= ls, short the factor <= ls
-            posi = self.factor.copy()
             # TODO: Using >= and <= may cause problems when the factor equals ls
-            posi[self.factor >= self.ls] = 1
-            posi[self.factor <= self.ls] = -1
+            posi_long = self.factor[self.factor >= self.ls]
+            posi_short = self.factor[self.factor <= self.ls]
 
         else:
             long_range, short_range = self._get_range_abs()
-            posi = self.factor.copy()
             # TODO: Using >= and <= may cause problems when the factor equals nodes
-            posi[(self.factor >= long_range[0]) & (self.factor <= long_range[1])] = 1
-            posi[(self.factor >= short_range[0]) & (self.factor <= short_range[1])] = -1
+            posi_long = self.factor[
+                (self.factor >= long_range[0]) & (self.factor <= long_range[1])
+            ]
+            posi_short = self.factor[
+                (self.factor >= short_range[0]) & (self.factor <= short_range[1])
+            ]
 
-        return posi
+        return posi_long, posi_short
 
     def _get_range_abs(self) -> Tuple[list, list]:
         """
@@ -151,21 +155,28 @@ class Position:
                 ranges[direction] = [nodes[0], nodes[1]]
 
         return long_range, short_range
-    
+
     def _gen_posi_rank(self) -> pd.Series | pd.DataFrame:
         """
         Generate the position using the rank.
         """
-        if isinstance(self.ls, (float, int)):
-            # long the factor >= ls, short the factor <= ls
-            posi = self.factor.copy()
-            posi[self.factor >= self.ls] = 1
-            posi[self.factor <= self.ls] = -1
+        posi_long = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
+        posi_short = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
+        for date in self.factor.index:
+            cross_as = self.factor.loc[date].rank(ascending=True)
+            cross_des = self.factor.loc[date].rank(ascending=False)
+            if isinstance(self.ls, (float, int)):
+                # long the rank in the top ls, short the rank in the bottom ls
+                # TODO: Using <= and >= may cause problems when multiple factors have the same rank
+                posi_long.loc[date] = self.factor.loc[date][cross_des <= self.ls]
+                posi_short.loc[date] = self.factor.loc[date][cross_as <= self.ls]
+            else:
+                long_range, short_range = self._get_range_rank()
+                posi_long.loc[date] = self.factor.loc[date][
+                    (cross_des >= long_range[0]) & (cross_des <= long_range[1])
+                ]
+                posi_short.loc[date] = self.factor.loc[date][
+                    (cross_as >= short_range[0]) & (cross_as <= short_range[1])
+                ]
 
-        else:
-            long_range, short_range = self._get_range_rank()
-            posi = self.factor.copy()
-            posi[(self.factor >= long_range[0]) & (self.factor <= long_range[1])] = 1
-            posi[(self.factor >= short_range[0]) & (self.factor <= short_range[1])] = -1
-
-        return posi
+        return posi_long, posi_short

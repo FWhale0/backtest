@@ -26,18 +26,25 @@ from strat_test.calc_funcs import (
 
 class StratPerf:
     """
-    Class to calculate and analyze the performance metrics of a trading strategy.
+    Class to calculate and analyze
+    the performance metrics of a trading strategy.
 
     Parameters:
-    - net_worth (pd.Series): Series representing the net worth of the strategy.
-    - posi (pd.DataFrame | pd.Series): DataFrame or Series representing the position of the strategy.
-    - price (pd.DataFrame | pd.Series | None): DataFrame or Series representing the price data. Default is None.
-    - baseline (pd.Series | None): Series representing the baseline data. Default is None.
+    - net_worth (pd.Series): Series representing
+    the net worth of the strategy.
+    - posi (pd.DataFrame | pd.Series): DataFrame or Series
+    representing the position of the strategy.
+    - price (pd.DataFrame | pd.Series | None): DataFrame or Series
+    representing the price data. Default is None.
+    - baseline (pd.Series | None): Series representing
+    the baseline data. Default is None.
 
     Attributes:
     - net_worth (pd.Series): Series representing the net worth of the strategy.
-    - posi (pd.DataFrame | pd.Series): DataFrame or Series representing the position of the strategy.
-    - price (pd.DataFrame | pd.Series | None): DataFrame or Series representing the price data.
+    - posi (pd.DataFrame | pd.Series): DataFrame or Series
+    representing the position of the strategy.
+    - price (pd.DataFrame | pd.Series | None):
+    DataFrame or Series representing the price data.
     - baseline (pd.Series | None): Series representing the baseline data.
     - perf (pd.DataFrame): DataFrame containing the performance metrics.
 
