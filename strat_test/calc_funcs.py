@@ -8,7 +8,7 @@ from sortedcontainers import SortedList
 from typing import Literal
 
 
-def calc_days(data: pd.Series) -> int:
+def calc_days(data: pd.Series | pd.DataFrame) -> int:
     """
     Calculate the number of days in the given data.
 
