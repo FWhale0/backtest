@@ -44,7 +44,7 @@ class Position:
         self.ls = ls
         self.weight = weight
 
-        self.unweighted_posi_long, self.unweighted_posi_short = self._gen_posi()
+        self.uw_posi_long, self.uw_posi_short = self._gen_posi()
         self.posi_long, self.posi_short = self._gen_weighted_posi()
 
     def _validate_factor(self, factor: DfOrSeries) -> None:
@@ -207,26 +207,18 @@ class Position:
         """
         Generate the weighted position.
         """
-        posi_long = self.unweighted_posi_long
-        posi_short = self.unweighted_posi_short
+        posi_long = self.uw_posi_long
+        posi_short = self.uw_posi_short
 
         if self.weight == "equal":
-            posi_long = (
-                self.unweighted_posi_long / self.unweighted_posi_long.abs().sum()
-            )
-            posi_short = (
-                self.unweighted_posi_short / self.unweighted_posi_short.abs().sum()
-            )
+            posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
+            posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
         elif self.weight == "value":
-            posi_long = (
-                self.unweighted_posi_long / self.unweighted_posi_long.abs().sum()
-            )
-            posi_short = (
-                self.unweighted_posi_short / self.unweighted_posi_short.abs().sum()
-            )
+            posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
+            posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
 
         if isinstance(self.weight, pd.DataFrame):
-            posi_long = self.unweighted_posi_long * self.weight
-            posi_short = self.unweighted_posi_short * self.weight
+            posi_long = self.uw_posi_long * self.weight
+            posi_short = self.uw_posi_short * self.weight
 
         return posi_long, posi_short
