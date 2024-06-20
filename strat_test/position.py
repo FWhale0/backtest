@@ -1,55 +1,70 @@
 from __future__ import annotations
 
-from typing import Literal, Tuple, Any, Type
+from typing import Literal, Tuple, Any, Type, Union
 import pandas as pd
 
-DfOrSeries = pd.DataFrame | pd.Series
+DfOrSeries = Union[pd.DataFrame, pd.Series]
 
 
 class Position:
     """
-    Class to calculate the position of a trading strategy.
+    A class representing a position in a trading strategy.
 
     Parameters:
-    - factor (DfOrSeries | float | int):
-    Series or DataFrame representing the factor data.
-    - ls (str): The method to select the long and short positions.
-    - weight (Literal["equal", "value"] | pd.DataFrame):
-    "equal" or "value". Default is "equal".
+        factor_data (DfOrSeries): The factor data used for generating positions.
+        mode (Literal["abs", "rank", "quantile"]): The mode for generating positions.
+        ls (str | float | int): The long/short threshold for generating positions.
+        weight (Literal["equal", "value"] | pd.DataFrame, optional): The weighting scheme for positions. Defaults to "equal".
 
     Attributes:
-    - factor (DfOrSeries | float | int):
-    Series or DataFrame representing the factor data.
-    - mode (Literal["abs", "rank", "quantile"]): The method to calculate the position.
-    - ls (str): "long" or "short".
-    - weight (Literal["equal", "value"] | pd.DataFrame): "equal" or "value".
-    - posi (DfOrSeries): Series or DataFrame representing the position.
+        factor (DfOrSeries): The factor data used for generating positions.
+        mode (Literal["abs", "rank", "quantile"]): The mode for generating positions.
+        ls (str | float | int): The long/short threshold for generating positions.
+        weight (Literal["equal", "value"] | pd.DataFrame): The weighting scheme for positions.
+        uw_posi_long (DfOrSeries): The unweighted long positions.
+        uw_posi_short (DfOrSeries): The unweighted short positions.
+        posi (DfOrSeries): The weighted positions.
+
+    Raises:
+        ValueError: If the input factor is not a pandas Series or DataFrame.
+        ValueError: If the mode is not one of "abs", "rank", or "quantile".
+        ValueError: If the ls is not a string, float, or int.
+        ValueError: If the ls is a negative number when mode is "rank".
+        ValueError: If the ls is not a number between 0 and 1 when mode is "quantile".
+        ValueError: If the weight is not one of "equal", "value", or a DataFrame.
+
     """
 
     def __init__(
         self,
-        factor: DfOrSeries,
+        factor_data: DfOrSeries,
         mode: Literal["abs", "rank", "quantile"],
         ls: str | float | int,
         weight: Literal["equal", "value"] | pd.DataFrame = "equal",
     ) -> None:
         # Check the input data
-        self._validate_factor(factor)
+        self._validate_factor(factor_data)
         self._validate_mode(mode)
         self._validate_ls(ls, mode)
         self._validate_weight(weight)
 
-        self.factor = factor
+        self.factor = factor_data
         self.mode = mode
         self.ls = ls
         self.weight = weight
 
         self.uw_posi_long, self.uw_posi_short = self._gen_posi()
-        self.posi_long, self.posi_short = self._gen_weighted_posi()
+        self.posi = self._gen_weighted_posi()
 
     def _validate_factor(self, factor: DfOrSeries) -> None:
         """
-        Check the factor data.
+        Validate the input factor data.
+
+        Args:
+            factor (DfOrSeries): The input factor data.
+
+        Raises:
+            ValueError: If the input factor is not a pandas Series or DataFrame.
         """
         if isinstance(factor, (pd.Series, pd.DataFrame)):
             if isinstance(factor, pd.Series):
@@ -59,7 +74,13 @@ class Position:
 
     def _validate_mode(self, mode: Literal["abs", "rank", "quantile"]) -> None:
         """
-        Check the mode.
+        Validate the input mode.
+
+        Args:
+            mode (Literal["abs", "rank", "quantile"]): The input mode.
+
+        Raises:
+            ValueError: If the mode is not one of "abs", "rank", or "quantile".
         """
         if mode not in ["abs", "rank", "quantile"]:
             raise ValueError("The mode must be 'abs', 'rank', or 'quantile'.")
@@ -70,7 +91,16 @@ class Position:
         mode: Literal["abs", "rank", "quantile"],
     ) -> None:
         """
-        Check the long and short positions.
+        Validate the input ls.
+
+        Args:
+            ls (str | float | int): The input ls.
+            mode (Literal["abs", "rank", "quantile"]): The mode for generating positions.
+
+        Raises:
+            ValueError: If the ls is not a string, float, or int.
+            ValueError: If the ls is a negative number when mode is "rank".
+            ValueError: If the ls is not a number between 0 and 1 when mode is "quantile".
         """
         if not isinstance(ls, (str, float, int)):
             raise ValueError("The ls must be a string, float, or int.")
@@ -85,14 +115,26 @@ class Position:
         self, weight: Literal["equal", "value"] | pd.DataFrame
     ) -> None:
         """
-        Check the weight.
+        Validate the input weight.
+
+        Args:
+            weight (Literal["equal", "value"] | pd.DataFrame): The input weight.
+
+        Raises:
+            ValueError: If the weight is not one of "equal", "value", or a DataFrame.
         """
         if not isinstance(weight, (str, pd.DataFrame)):
             raise ValueError("The weight must be 'equal', 'value', or a DataFrame.")
 
     def _gen_posi(self) -> Tuple[DfOrSeries, DfOrSeries]:
         """
-        Generate the position.
+        Generate unweighted long and short positions based on the mode and ls.
+
+        Returns:
+            Tuple[DfOrSeries, DfOrSeries]: The unweighted long and short positions.
+
+        Raises:
+            ValueError: If the mode is not one of "abs", "rank", or "quantile".
         """
         if self.mode == "abs":
             return self._gen_posi_abs()
@@ -107,7 +149,20 @@ class Position:
         self, data_type: Type
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
-        Process range from ls string.
+        Get the long and short range from the ls string.
+
+        Args:
+            data_type (Type): The data type for parsing the ls range.
+
+        Returns:
+            Tuple[Tuple[float, float], Tuple[float, float]]: The long and short range.
+
+        Raises:
+            ValueError: If the ls string is empty.
+            ValueError: If there is more than one '_' in the ls string.
+            ValueError: If a rule does not start with 'l:' or 's:'.
+            ValueError: If a rule is not specified.
+            ValueError: If a rule has multiple '-'.
         """
         ranges: dict[str, Any] = {"l": None, "s": None}
 
@@ -146,7 +201,10 @@ class Position:
 
     def _gen_posi_abs(self) -> Tuple[DfOrSeries, DfOrSeries]:
         """
-        Generate the position using the absolute value.
+        Generate unweighted long and short positions based on the absolute mode.
+
+        Returns:
+            Tuple[DfOrSeries, DfOrSeries]: The unweighted long and short positions.
         """
         posi_long = self.factor.copy()
         posi_short = self.factor.copy()
@@ -170,7 +228,16 @@ class Position:
         self, mode: Literal["rank", "quantile"]
     ) -> Tuple[DfOrSeries, DfOrSeries]:
         """
-        Generate the position using the rank.
+        Generate unweighted long and short positions based on the relative mode.
+
+        Args:
+            mode (Literal["rank", "quantile"]): The relative mode.
+
+        Returns:
+            Tuple[DfOrSeries, DfOrSeries]: The unweighted long and short positions.
+
+        Raises:
+            ValueError: If the mode is not one of "rank" or "quantile".
         """
         if mode == "rank":
             data_type, rank_pct = int, False
@@ -188,31 +255,29 @@ class Position:
             if isinstance(self.ls, data_type):
                 # long the rank in the top ls, short the rank in the bottom ls
                 # TODO: <= and >= may cause problems if some factors have the same rank
-                posi_long.loc[date] = self.factor.loc[date][cross_des <= self.ls]
-                posi_short.loc[date] = self.factor.loc[date][cross_as <= self.ls]
+                posi_long.loc[date] = cross_des <= self.ls
+                posi_short.loc[date] = cross_as <= self.ls
             elif isinstance(self.ls, str):
                 long_range, short_range = self._get_ls_range(data_type)
-                posi_long.loc[date] = self.factor.loc[date][
-                    (cross_des >= long_range[0]) & (cross_des <= long_range[1])
-                ]
-                posi_short.loc[date] = self.factor.loc[date][
-                    (cross_as >= short_range[0]) & (cross_as <= short_range[1])
-                ]
+                l_min, l_max = long_range
+                s_min, s_max = short_range
+                posi_long.loc[date] = (cross_des >= l_min) & (cross_des <= l_max)
+                posi_short.loc[date] = (cross_as >= s_min) & (cross_as <= s_max)
             else:
                 raise ValueError(f"ls must be {data_type} or str when mode is {mode}.")
 
         return posi_long, posi_short
 
-    def _gen_weighted_posi(self) -> Tuple[DfOrSeries, DfOrSeries]:
+    def _gen_weighted_posi(self) -> DfOrSeries:
         """
-        Generate the weighted position.
-        """
-        posi_long = self.uw_posi_long
-        posi_short = self.uw_posi_short
+        Generate weighted positions based on the weighting scheme.
 
+        Returns:
+            DfOrSeries: The weighted positions.
+        """
         if self.weight == "equal":
-            posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
-            posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
+            posi = self.uw_posi_long - self.uw_posi_short
+            posi = posi.div(posi.abs().sum(axis=1), axis=0)
         elif self.weight == "value":
             posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
             posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
@@ -221,4 +286,4 @@ class Position:
             posi_long = self.uw_posi_long * self.weight
             posi_short = self.uw_posi_short * self.weight
 
-        return posi_long, posi_short
+        return posi
