@@ -14,24 +14,18 @@ class Position:
         factor_data (DfOrSeries): The factor data used for generating positions.
         mode (Literal["abs", "rank", "quantile"]): The mode for generating positions.
         ls (str | float | int): The long/short threshold for generating positions.
-        weight (Literal["equal", "value"] | pd.DataFrame, optional): The weighting scheme for positions. Defaults to "equal".
+        weight (Literal["equal", "value"] | pd.DataFrame, optional):
+        The weighting scheme for positions. Defaults to "equal".
 
     Attributes:
         factor (DfOrSeries): The factor data used for generating positions.
         mode (Literal["abs", "rank", "quantile"]): The mode for generating positions.
         ls (str | float | int): The long/short threshold for generating positions.
-        weight (Literal["equal", "value"] | pd.DataFrame): The weighting scheme for positions.
+        weight (Literal["equal", "value"] | pd.DataFrame):
+        The weighting scheme for positions.
         uw_posi_long (DfOrSeries): The unweighted long positions.
         uw_posi_short (DfOrSeries): The unweighted short positions.
         posi (DfOrSeries): The weighted positions.
-
-    Raises:
-        ValueError: If the input factor is not a pandas Series or DataFrame.
-        ValueError: If the mode is not one of "abs", "rank", or "quantile".
-        ValueError: If the ls is not a string, float, or int.
-        ValueError: If the ls is a negative number when mode is "rank".
-        ValueError: If the ls is not a number between 0 and 1 when mode is "quantile".
-        ValueError: If the weight is not one of "equal", "value", or a DataFrame.
 
     """
 
