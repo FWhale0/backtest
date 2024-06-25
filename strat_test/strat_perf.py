@@ -58,17 +58,18 @@ class StratPerf:
     def __init__(
         self,
         net_worth: pd.Series,
-        posi: pd.DataFrame | pd.Series,
+        posi: pd.DataFrame | pd.Series | None = None,
         price: pd.DataFrame | pd.Series | None = None,
         baseline: pd.Series | None = None,
     ):
-        assert net_worth.index.equals(posi.index), "Index mismatch"
+        if posi is not None:
+            assert net_worth.index.equals(posi.index), "Index mismatch"
+            assert posi.notna().all().all(), "Position contains NaN"
         if isinstance(price, (pd.DataFrame, pd.Series)):
             assert net_worth.index.equals(price.index), "Index mismatch"
         if isinstance(baseline, pd.Series):
             assert net_worth.index.equals(baseline.index), "Index mismatch"
         assert net_worth.notna().all().all(), "Asset contains NaN"
-        assert posi.notna().all().all(), "Position contains NaN"
 
         self.net_worth = self._parse_net_worth(net_worth)
 
@@ -106,7 +107,9 @@ class StratPerf:
         """
         # TODO: Exceed return
         nworth_g_y = self.net_worth.groupby(self.net_worth.index.year)
-        posi_g_y = self.posi.groupby(self.posi.index.year)
+        
+        if self.posi is not None:
+            posi_g_y = self.posi.groupby(self.posi.index.year)
 
         cols = [
             "days",
@@ -116,17 +119,17 @@ class StratPerf:
             "mdd.%",
             "calmar",
             "sharpe",
-            "tr.%",
-            "long.%",
-            "short.%",
-            "abs.%",
         ]
+        if self.posi is not None:
+            cols += ["tr.%", "long.%", "short.%", "abs.%"]
+
         perf = pd.DataFrame(columns=cols)
         for y in nworth_g_y.groups.keys():
             nworth_y = nworth_g_y.get_group(y)
-            posi_y = posi_g_y.get_group(y)
+            if self.posi is not None:
+                posi_y = posi_g_y.get_group(y)
 
-            perf.loc[y] = [
+            year_perf = [
                 calc_days(nworth_y),
                 calc_accuracy(nworth_y),
                 calc_return(nworth_y),
@@ -134,13 +137,18 @@ class StratPerf:
                 calc_max_drawdown(nworth_y),
                 calc_calmar(nworth_y),
                 calc_sharpe(nworth_y),
-                calc_turnover(posi_y),
-                calc_long(posi_y),
-                calc_short(posi_y),
-                calc_longshort(posi_y),
             ]
+            if self.posi is not None:
+                year_perf += [
+                    calc_turnover(posi_y),
+                    calc_long(posi_y),
+                    calc_short(posi_y),
+                    calc_longshort(posi_y),
+                ]
 
-        perf.loc["total"] = [
+            perf.loc[y] = year_perf
+
+        total_perf = [
             calc_days(self.net_worth),
             calc_accuracy(self.net_worth),
             yearly_return(self.net_worth),
@@ -148,11 +156,16 @@ class StratPerf:
             calc_max_drawdown(self.net_worth),
             yearly_calmar(self.net_worth),
             yearly_sharpe(self.net_worth),
-            calc_turnover(self.posi),
-            calc_long(self.posi),
-            calc_short(self.posi),
-            calc_longshort(self.posi),
         ]
+        if self.posi is not None:
+            total_perf += [
+                calc_turnover(self.posi),
+                calc_long(self.posi),
+                calc_short(self.posi),
+                calc_longshort(self.posi),
+            ]
+
+        perf.loc["total"] = total_perf
 
         return perf
 
@@ -171,10 +184,11 @@ class StratPerf:
         toshow["mdd.%"] = (toshow["mdd.%"] * 100).round(2)
         toshow["calmar"] = toshow["calmar"].round(2)
         toshow["sharpe"] = toshow["sharpe"].round(2)
-        toshow["tr.%"] = (toshow["tr.%"] * 100).round(2)
-        toshow["long.%"] = (toshow["long.%"] * 100).round(2)
-        toshow["short.%"] = (toshow["short.%"] * 100).round(2)
-        toshow["abs.%"] = (toshow["abs.%"] * 100).round(2)
+        if self.posi is not None:
+            toshow["tr.%"] = (toshow["tr.%"] * 100).round(2)
+            toshow["long.%"] = (toshow["long.%"] * 100).round(2)
+            toshow["short.%"] = (toshow["short.%"] * 100).round(2)
+            toshow["abs.%"] = (toshow["abs.%"] * 100).round(2)
         return toshow
 
     def get_annual(self) -> pd.DataFrame:
