@@ -281,3 +281,22 @@ class Position:
             posi_short = self.uw_posi_short * self.weight
 
         return posi
+
+    def get_posi(self) -> DfOrSeries:
+        """
+        Get the weighted positions.
+
+        Returns:
+            DfOrSeries: The weighted positions.
+        """
+        return self.posi
+
+    def __neg__(self) -> Position:
+        """
+        Get the negative positions.
+
+        Returns:
+            Position: The negative positions.
+        """
+        posi = -self.posi
+        return Position(posi, self.mode, self.ls, self.weight)

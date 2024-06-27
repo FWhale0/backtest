@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from typing import Literal, Union
 
 from strat_test.strat_perf import StratPerf
+from strat_test.position import Position
 
 
 class NetWorth:
@@ -31,7 +32,8 @@ class NetWorth:
     def __init__(
         self,
         price: pd.DataFrame | pd.Series,
-        position: pd.DataFrame | pd.Series,
+        position: pd.DataFrame | pd.Series | Position,
+        fee: float = 0.0,
         ignore_posi_exceed: bool = False,
     ):
         # Convert Series to DataFrame
@@ -39,8 +41,11 @@ class NetWorth:
             price = price.to_frame()
         if isinstance(position, pd.Series):
             position = position.to_frame()
+        if isinstance(position, Position):
+            position = position.get_posi()
         self.price = price
         self.position = position
+        self.fee = fee
 
         # Check if the data match
         assert self._check_data_match(), "Data mismatch"
@@ -68,7 +73,7 @@ class NetWorth:
             return True
 
         # The absolute value of position should be less than or equal to 1
-        if self.position.abs().sum(axis=1).round(8).gt(1).any():
+        if self.position.abs().sum(axis=1).gt(1.00000001).any():
             return False
         return True
 
@@ -113,10 +118,17 @@ class NetWorth:
         index = price.index
 
         # Use return to calculate net worth
-        p_return = price.pct_change().to_numpy()
-        position = position.shift().to_numpy()
+        p_return = price.pct_change().to_numpy(dtype=float)
+        posi_shifted = position.shift().fillna(0).to_numpy(dtype=float)
+        posi_change = np.diff(posi_shifted, axis=0)
+        posi_change = np.vstack([np.zeros(posi_change.shape[1]), posi_change])
 
-        nworth = (np.nansum(p_return * position, axis=1) + 1).cumprod()
+        # Calculate transaction cost
+        tran_cost = np.abs(posi_change) * self.fee
+
+        # Calculate net worth
+        net_return = p_return * posi_shifted - tran_cost
+        nworth = (np.nansum(net_return, axis=1) + 1).cumprod()
 
         return pd.Series(data=nworth, index=index, name="net_worth")
 
