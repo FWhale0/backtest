@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Tuple, Any, Type, Union
 import pandas as pd
+import numpy as np
 
 DfOrSeries = Union[pd.DataFrame, pd.Series]
 
@@ -271,7 +272,7 @@ class Position:
         """
         if self.weight == "equal":
             posi = self.uw_posi_long - self.uw_posi_short
-            posi = posi.div(posi.abs().sum(axis=1), axis=0)
+            posi = posi.div(posi.abs().sum(axis=1).replace(0, np.nan), axis=0).fillna(0)
         elif self.weight == "value":
             posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
             posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
