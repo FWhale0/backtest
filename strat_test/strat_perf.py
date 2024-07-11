@@ -76,7 +76,7 @@ class StratPerf:
         self.posi = posi
         self.price = price
         self.baseline = baseline
-        self.perf = self._performance()
+        self.perf = None
 
     def _parse_net_worth(self, nworth: pd.Series | pd.DataFrame) -> pd.Series:
         """
@@ -176,6 +176,8 @@ class StratPerf:
         Returns:
         - pd.DataFrame: DataFrame with parsed performance metrics.
         """
+        if self.perf is None:
+            self.perf = self._performance()
         toshow = self.perf.copy()
         toshow["days"] = toshow["days"].astype(int)
         toshow["acc.%"] = (toshow["acc.%"] * 100).round(2)

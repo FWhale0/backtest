@@ -83,7 +83,16 @@ def calc_calmar(nworth: pd.Series) -> float:
     Returns:
         The Calmar ratio of the net worth series.
     """
-    return calc_return(nworth) / calc_max_drawdown(nworth)
+    ret = calc_return(nworth)
+    mdd = calc_max_drawdown(nworth)
+
+    if mdd == 0:
+        if ret > 0:
+            return np.inf
+        if ret < 0:
+            return -np.inf
+        return np.nan
+    return ret / mdd
 
 
 def calc_sharpe(nworth: pd.Series) -> float:
@@ -96,7 +105,16 @@ def calc_sharpe(nworth: pd.Series) -> float:
     Returns:
         The Sharpe ratio of the net worth series.
     """
-    return calc_return(nworth) / calc_std(nworth)
+    ret = calc_return(nworth)
+    std = calc_std(nworth)
+
+    if std == 0:
+        if ret > 0:
+            return np.inf
+        if ret < 0:
+            return -np.inf
+        return np.nan
+    return ret / std
 
 
 def calc_turnover(posi: pd.DataFrame) -> float:

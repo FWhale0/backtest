@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal, Tuple, Any, Type, Union
 import pandas as pd
 import numpy as np
+import warnings
 
 DfOrSeries = Union[pd.DataFrame, pd.Series]
 
@@ -184,7 +185,7 @@ class Position:
             nodes = [data_type(node) for node in nodes]
 
             if len(nodes) > 2:
-                raise ValueError(f"Multiple '-' in rule: {sub_rule}")
+                raise ValueError(f"Multiple '~' in rule: {sub_rule}")
 
             # the start and end of the range
             if len(nodes) == 1:
@@ -220,7 +221,7 @@ class Position:
         return posi_long, posi_short
 
     def _gen_posi_rela(
-        self, mode: Literal["rank", "quantile"]
+        self, mode: Literal["rank", "quantile"], method: int = 1
     ) -> Tuple[DfOrSeries, DfOrSeries]:
         """
         Generate unweighted long and short positions based on the relative mode.
@@ -241,25 +242,66 @@ class Position:
         else:
             raise ValueError("The mode must be 'rank' or 'quantile'.")
 
-        posi_long = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
-        posi_short = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
-        for date in self.factor.index:
-            cross_as = self.factor.loc[date].rank(pct=rank_pct, ascending=True)
-            cross_des = self.factor.loc[date].rank(pct=rank_pct, ascending=False)
+        # abandon the first method
+        if method == 0:
+            posi_long = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
+            posi_short = pd.DataFrame(index=self.factor.index, columns=self.factor.columns)
+            posi_long = posi_long.astype(bool)
+            posi_short = posi_short.astype(bool)
+            for date in self.factor.index:
+                cross_as = self.factor.loc[date].rank(pct=rank_pct, ascending=True)
+                cross_des = self.factor.loc[date].rank(pct=rank_pct, ascending=False)
+                cross_as = (cross_as - cross_as.min()) / (cross_as.max() - cross_as.min())
+                cross_des = (cross_des - cross_des.min()) / (cross_des.max() - cross_des.min())
 
+                if isinstance(self.ls, data_type):
+                    # long the rank in the top ls, short the rank in the bottom ls
+                    # TODO: <= and >= may cause problems if some factors have the same rank
+                    posi_long.loc[date] = cross_des <= self.ls
+                    posi_short.loc[date] = cross_as <= self.ls
+                elif isinstance(self.ls, str):
+                    long_range, short_range = self._get_ls_range(data_type)
+                    l_min, l_max = long_range
+                    s_min, s_max = short_range
+                    posi_long.loc[date] = (cross_des >= l_min) & (cross_des <= l_max)
+                    posi_short.loc[date] = (cross_as >= s_min) & (cross_as <= s_max)
+                else:
+                    raise ValueError(f"ls must be {data_type} or str when mode is {mode}.")
+        elif method == 1:
+            cross_as = self.factor.rank(axis=1, pct=rank_pct, ascending=True)
+            cross_des = self.factor.rank(axis=1, pct=rank_pct, ascending=False)
+
+            # transfrom to numpy array for faster calculation
+            ac_as = np.asarray(cross_as)
+            ac_ds = np.asarray(cross_des)
+            if rank_pct:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", 'All-NaN slice encountered')
+                    cas_min, cas_max = np.nanmin(ac_as, axis=1), np.nanmax(ac_as, axis=1)
+                    cde_min, cde_max = np.nanmin(ac_ds, axis=1), np.nanmax(ac_ds, axis=1)
+                ac_as = (ac_as - cas_min[:, None]) / (cas_max - cas_min)[:, None]
+                ac_ds = (ac_ds - cde_min[:, None]) / (cde_max - cde_min)[:, None]
+
+            # generate the positions without weighting
             if isinstance(self.ls, data_type):
                 # long the rank in the top ls, short the rank in the bottom ls
+                # note that <= will make np.nan to be False
                 # TODO: <= and >= may cause problems if some factors have the same rank
-                posi_long.loc[date] = cross_des <= self.ls
-                posi_short.loc[date] = cross_as <= self.ls
+                posi_long = ac_ds <= self.ls
+                posi_short = ac_as <= self.ls
             elif isinstance(self.ls, str):
                 long_range, short_range = self._get_ls_range(data_type)
                 l_min, l_max = long_range
                 s_min, s_max = short_range
-                posi_long.loc[date] = (cross_des >= l_min) & (cross_des <= l_max)
-                posi_short.loc[date] = (cross_as >= s_min) & (cross_as <= s_max)
+                posi_long = (ac_ds >= l_min) & (ac_ds <= l_max)
+                posi_short = (ac_as >= s_min) & (ac_as <= s_max)
             else:
                 raise ValueError(f"ls must be {data_type} or str when mode is {mode}.")
+
+            index, columns = self.factor.index, self.factor.columns
+
+            posi_long = pd.DataFrame(posi_long, index=index, columns=columns)
+            posi_short = pd.DataFrame(posi_short, index=index, columns=columns)
 
         return posi_long, posi_short
 
@@ -271,8 +313,10 @@ class Position:
             DfOrSeries: The weighted positions.
         """
         if self.weight == "equal":
-            posi = self.uw_posi_long - self.uw_posi_short
-            posi = posi.div(posi.abs().sum(axis=1).replace(0, np.nan), axis=0).fillna(0)
+            posi = self.uw_posi_long.astype(int) - self.uw_posi_short.astype(int)
+            if isinstance(posi, pd.DataFrame):
+                posi_daily_sum = posi.abs().sum(axis=1).replace(0, np.nan)
+                posi = posi.div(posi_daily_sum, axis=0).fillna(0)
         elif self.weight == "value":
             posi_long = self.uw_posi_long / self.uw_posi_long.abs().sum()
             posi_short = self.uw_posi_short / self.uw_posi_short.abs().sum()
@@ -291,6 +335,28 @@ class Position:
             DfOrSeries: The weighted positions.
         """
         return self.posi
+
+    def holding_freq(self, start: str, end: str) -> pd.DataFrame:
+        """
+        Get the holding frequency of the positions.
+
+        Args:
+            start (str): The start date.
+            end (str): The end date.
+
+        Returns:
+            DfOrSeries: The holding frequency of the positions.
+        """
+        if start is None:
+            start = self.uw_posi_long.index[0]
+        if end is None:
+            end = self.uw_posi_long
+
+        long_freq = self.uw_posi_long.loc[start:end].sum()
+        short_freq = self.uw_posi_short.loc[start:end].sum()
+
+        freq = pd.DataFrame([long_freq, short_freq], index=["long", "short"])
+        return freq.T
 
     def __neg__(self) -> Position:
         """

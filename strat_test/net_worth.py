@@ -55,7 +55,7 @@ class NetWorth:
 
         # Calculate net worth and performance
         self.networth = self._calc_networth()
-        self.perf = StratPerf(self.networth, position, price)
+        self.perf = None
 
     def _check_posi_legal(self, ignore_posi_exceed: bool) -> bool:
         """
@@ -89,8 +89,13 @@ class NetWorth:
         dropped_posi = dropped_posi.dropna(how="all", axis=0)
         dropped_posi = dropped_posi.replace(0, np.nan)
 
+        # TODO: ignore when 1-column DataFrame
         if not dropped_posi.columns.isin(self.price.columns).all():
-            return False
+            if len(dropped_posi.columns) == 1:
+                self.position.columns = self.price.columns
+                dropped_posi.columns = self.price.columns
+            else:
+                return False
 
         if not dropped_posi.index.isin(self.price.index).all():
             return False
@@ -190,10 +195,21 @@ class NetWorth:
             matplotlib.axes.Axes: The plot of the performance.
 
         """
+        if self.perf is None:
+            self.perf = StratPerf(self.networth)
         return self.perf.plot(figsize=figsize)
 
-    def get_total(self) -> float:
+    def total_perf(self) -> float:
+        if self.perf is None:
+            self.perf = StratPerf(self.networth)
         return self.perf.get_total()
 
-    def get_annual(self) -> float:
+    def annual_perf(self) -> float:
+        if self.perf is None:
+            self.perf = StratPerf(self.networth)
         return self.perf.get_annual()
+
+    def single_networth(self, col: str) -> pd.Series:
+        if len(self.position.columns) == 1:
+            raise ValueError("Only one column in the position data")
+        return NetWorth(self.price[col], self.position[col], self.fee)
