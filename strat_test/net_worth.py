@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Literal, Union
+import warnings
+from tqdm.auto import tqdm
 
 from strat_test.strat_perf import StratPerf
 from strat_test.position import Position
@@ -35,6 +37,7 @@ class NetWorth:
         position: pd.DataFrame | pd.Series | Position,
         fee: float = 0.0,
         ignore_posi_exceed: bool = False,
+        method: Literal["vector", "progress"] = "vector",
     ):
         # Convert Series to DataFrame
         if isinstance(price, pd.Series):
@@ -54,7 +57,7 @@ class NetWorth:
         ), "Absolute value of position should be less than or equal to 1"
 
         # Calculate net worth and performance
-        self.networth = self._calc_networth()
+        self.networth = self._calc_networth(method)
         self.perf = None
 
     def _check_posi_legal(self, ignore_posi_exceed: bool) -> bool:
@@ -132,7 +135,9 @@ class NetWorth:
         tran_cost = np.abs(posi_change) * self.fee
 
         # Calculate net worth
-        net_return = p_return * posi_shifted - tran_cost
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            net_return = p_return * posi_shifted - tran_cost
         nworth = (np.nansum(net_return, axis=1) + 1).cumprod()
 
         return pd.Series(data=nworth, index=index, name="net_worth")
@@ -154,16 +159,20 @@ class NetWorth:
         nworth = pd.Series(index=price.index, name="net_worth")
         nworth.iloc[0] = 1
 
-        for d in price.index[1:]:
+        last_hold = nworth.iloc[0] * 0
+        for d in tqdm(price.index[1:], leave=False):
             last_index = price.index.get_loc(d) - 1
             last_asset = nworth.iloc[last_index]
             last_price = price.iloc[last_index]
-            hold = (last_asset * posi.loc[d]) / last_price
-            nworth.loc[d] = last_asset + (hold * (price.loc[d] - last_price)).sum()
+
+            hold = ((last_asset * posi.loc[d]) / last_price).fillna(0)
+            tran_cost = np.abs(hold - last_hold) * last_price * self.fee
+            nworth.loc[d] = last_asset + (hold * (price.loc[d] - last_price)).sum() - tran_cost.sum()
+            last_hold = hold
 
         return nworth
 
-    def _calc_networth(self) -> pd.Series:
+    def _calc_networth(self, method: Literal["vector", "progress"]) -> pd.Series:
         """
         Calculate the net worth of the strategy.
 
@@ -171,8 +180,10 @@ class NetWorth:
             pd.Series: The net worth of the strategy.
 
         """
-        # return self._calc_networth_progress()
-        return self._calc_networth_vector()
+        if method == "progress":
+            return self._calc_networth_progress()
+        elif method == "vector":
+            return self._calc_networth_vector()
 
     def get_networth(self) -> pd.Series:
         """

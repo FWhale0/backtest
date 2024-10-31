@@ -238,13 +238,14 @@ class StratPerf:
 
         _, ax1 = plt.subplots(figsize=figsize)
         ax2 = ax1.twinx()
-        self.net_worth.plot(ax=ax1, label="Asset")
+        # self.net_worth.plot(ax=ax1, label="Asset")
+        handle1 = ax1.plot(self.net_worth, label="Asset")
         if isinstance(self.price, pd.Series):
             self.price.plot(ax=ax1, label="Price")
             ex_ret = self.net_worth - self.price
             plt.plot(ex_ret, label="Exceed Return", color="green")
         drawdown = gen_drawdown(self.net_worth)
-        ax2.fill_between(
+        handle2 = ax2.fill_between(
             drawdown.index, drawdown, 0, color="red", alpha=0.3, label="Drawdown"
         )
         ax2.set_ylim(-1, 0)
@@ -253,8 +254,8 @@ class StratPerf:
             bl.plot(ax=ax1, label="Baseline")
 
         # TODO: Find a better way to locate the legend
-        ax1.legend()
-        ax2.legend()
+        handles = handle1 + [handle2]
+        ax1.legend(handles, [h.get_label() for h in handles], loc="lower left")
 
         ax1.right_ax = ax2
         return ax1

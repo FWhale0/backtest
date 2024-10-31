@@ -365,5 +365,5 @@ class Position:
         Returns:
             Position: The negative positions.
         """
-        posi = -self.posi
-        return Position(posi, self.mode, self.ls, self.weight)
+        factor = -self.factor
+        return Position(factor, self.mode, self.ls, self.weight)
